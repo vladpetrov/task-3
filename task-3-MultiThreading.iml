@@ -10,10 +10,11 @@
     <orderEntry type="module-library">
       <library>
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/log4j-1.2.15.jar!/" />
+          <root url="file://$MODULE_DIR$/src/resources" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
+        <jarDirectory url="file://$MODULE_DIR$/src/resources" recursive="false" />
       </library>
     </orderEntry>
   </component>

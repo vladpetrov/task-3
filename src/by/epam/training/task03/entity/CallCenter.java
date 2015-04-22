@@ -4,6 +4,7 @@ import org.apache.log4j.Logger;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -22,7 +23,6 @@ public class CallCenter implements Runnable {
     private static org.apache.log4j.Logger log = Logger.getLogger(CallCenter.class);
 
     public CallCenter(int operatorsCount) {
-        org.apache.log4j.BasicConfigurator.configure();
         this.run = true;
         this.operators = new LinkedBlockingQueue<>(operatorsCount);
         this.callersQueue = new LinkedBlockingQueue<>();
@@ -37,11 +37,7 @@ public class CallCenter implements Runnable {
             lock.lock();
             try {
                 freeOperator.await();
-                while (callersQueue.size() > 0) {
-                    Caller caller = callersQueue.poll();
-                    Operator operator = operators.poll();
-                    connectCaller(operator, caller);
-                }
+                log.info("Free operator!");
             } catch (InterruptedException e) {
                 log.error("Wait for free operator!", e);
             } finally {
@@ -50,53 +46,39 @@ public class CallCenter implements Runnable {
         }
     }
 
-    public void processCall(Caller caller) throws InterruptedException {
-        lock.lock();
-        try {
-            Operator operator = operators.poll();
-            if(operator != null) {
-                log.info("Connecting caller " + caller.getCallerID());
-                connectCaller(operator, caller);
-            } else {
-                log.info("Caller " + caller.getCallerID() + " is waiting for free operator");
-                callersQueue.put(caller);
-            }
-        } finally {
-            lock.unlock();
+    public boolean connectCaller(Caller caller) throws InterruptedException {
+        Operator operator = operators.poll(caller.getWaitSecondsPossibility(), TimeUnit.SECONDS);
+        if (operator == null) {
+            return false;
         }
+        caller.setOperator(operator);
+        log.info(caller.getCallerID() + " connected to " + operator.getOperatorID());
+        return true;
     }
 
-    public boolean connectCaller(Operator operator, Caller caller) throws InterruptedException{
+    public void endCall(Operator operator) throws InterruptedException {
         lock.lock();
         try {
-            operator.setCaller(caller);
-            caller.setOperator(operator);
-            Thread.sleep(caller.getProblemDiscusionTime());
-            caller.endCall();
-            operator.endCall();
-            if(callersQueue.contains(caller)) {
-                callersQueue.remove(caller);
+            if (!(operator == null)) {
+                operators.put(operator);
+                freeOperator.signal();
             }
-            log.info("Caller" + caller.getCallerID() + " got consulteng from " + operator.getOperatorID());
-            operators.put(operator);
-            freeOperator.signal();
-
         } finally {
             lock.unlock();
         }
-
-
-        return false;
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
+
         CallCenter that = (CallCenter) o;
+
+        if (run != that.run) return false;
         if (callersQueue != null ? !callersQueue.equals(that.callersQueue) : that.callersQueue != null) return false;
+        if (freeOperator != null ? !freeOperator.equals(that.freeOperator) : that.freeOperator != null) return false;
         if (lock != null ? !lock.equals(that.lock) : that.lock != null) return false;
-        if (log != null ? !log.equals(that.log) : that.log != null) return false;
         if (operators != null ? !operators.equals(that.operators) : that.operators != null) return false;
 
         return true;
@@ -107,7 +89,8 @@ public class CallCenter implements Runnable {
         int result = operators != null ? operators.hashCode() : 0;
         result = 31 * result + (callersQueue != null ? callersQueue.hashCode() : 0);
         result = 31 * result + (lock != null ? lock.hashCode() : 0);
-        result = 31 * result + (log != null ? log.hashCode() : 0);
+        result = 31 * result + (freeOperator != null ? freeOperator.hashCode() : 0);
+        result = 31 * result + (run ? 1 : 0);
         return result;
     }
 
@@ -117,6 +100,8 @@ public class CallCenter implements Runnable {
         sb.append("operators=").append(operators);
         sb.append(", callersQueue=").append(callersQueue);
         sb.append(", lock=").append(lock);
+        sb.append(", freeOperator=").append(freeOperator);
+        sb.append(", run=").append(run);
         sb.append('}');
         return sb.toString();
     }
