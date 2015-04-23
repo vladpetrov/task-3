@@ -7,7 +7,6 @@ import org.apache.log4j.Logger;
  * Created by higgs on 15.04.15.
  */
 public class Caller implements Runnable {
-
     private String callerID;
     private CallCenter callCenter;
     private Operator operator;

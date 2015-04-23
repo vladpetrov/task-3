@@ -16,7 +16,6 @@ public class Runner {
     private static Random rand = new Random();
 
     public static void main(String[] args) throws InterruptedException {
-
         CallCenter callCenter = new CallCenter(5);
         Thread callCenterThread = new Thread(callCenter, "callCenter");
         callCenterThread.setDaemon(true);

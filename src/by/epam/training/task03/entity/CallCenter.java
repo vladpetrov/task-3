@@ -13,9 +13,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * Created by higgs on 15.04.15.
  */
 public class CallCenter implements Runnable {
-
     private BlockingQueue<Operator> operators;
-    private BlockingQueue<Caller> callersQueue;
     private Lock lock = new ReentrantLock();
     private Condition freeOperator = lock.newCondition();
     private boolean run;
@@ -25,7 +23,6 @@ public class CallCenter implements Runnable {
     public CallCenter(int operatorsCount) {
         this.run = true;
         this.operators = new LinkedBlockingQueue<>(operatorsCount);
-        this.callersQueue = new LinkedBlockingQueue<>();
         for (int i = 0; i < operatorsCount; i++) {
             operators.add(new Operator("Operator-" + i));
         }
@@ -59,13 +56,29 @@ public class CallCenter implements Runnable {
     public void endCall(Operator operator) throws InterruptedException {
         lock.lock();
         try {
-            if (!(operator == null)) {
+            if (operator != null) {
                 operators.put(operator);
                 freeOperator.signal();
             }
         } finally {
             lock.unlock();
         }
+    }
+
+    public BlockingQueue<Operator> getOperators() {
+        return operators;
+    }
+
+    public void setOperators(BlockingQueue<Operator> operators) {
+        this.operators = operators;
+    }
+
+    public boolean isRun() {
+        return run;
+    }
+
+    public void setRun(boolean run) {
+        this.run = run;
     }
 
     @Override
@@ -76,7 +89,6 @@ public class CallCenter implements Runnable {
         CallCenter that = (CallCenter) o;
 
         if (run != that.run) return false;
-        if (callersQueue != null ? !callersQueue.equals(that.callersQueue) : that.callersQueue != null) return false;
         if (freeOperator != null ? !freeOperator.equals(that.freeOperator) : that.freeOperator != null) return false;
         if (lock != null ? !lock.equals(that.lock) : that.lock != null) return false;
         if (operators != null ? !operators.equals(that.operators) : that.operators != null) return false;
@@ -87,7 +99,6 @@ public class CallCenter implements Runnable {
     @Override
     public int hashCode() {
         int result = operators != null ? operators.hashCode() : 0;
-        result = 31 * result + (callersQueue != null ? callersQueue.hashCode() : 0);
         result = 31 * result + (lock != null ? lock.hashCode() : 0);
         result = 31 * result + (freeOperator != null ? freeOperator.hashCode() : 0);
         result = 31 * result + (run ? 1 : 0);
@@ -98,7 +109,6 @@ public class CallCenter implements Runnable {
     public String toString() {
         final StringBuffer sb = new StringBuffer("CallCenter{");
         sb.append("operators=").append(operators);
-        sb.append(", callersQueue=").append(callersQueue);
         sb.append(", lock=").append(lock);
         sb.append(", freeOperator=").append(freeOperator);
         sb.append(", run=").append(run);
